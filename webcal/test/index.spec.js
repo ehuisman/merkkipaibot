@@ -16,6 +16,8 @@ const generateHoliday = (day) => ({
 
 const generateResponseBodyFixture = () => JSON.stringify(range(10).map(i => generateHoliday(i)));
 
+const generateEventFixture = () => ({ time: DateTime.utc(2017, 1, 1, 11).toISO() });
+
 const mockServer = () => {
   nock('https://www.webcal.fi')
     .get('/cal.php')
@@ -46,7 +48,7 @@ describe('handler', () => {
     .then(() => expect(nock.isDone(), 'All requests should be done').to.equal(true))
   );
 
-  it('adds events of current day to SQS', () => handler({"time": "2017-01-01T11:00:00Z"})
+  it('adds holidays of current day to SQS', () => handler(generateEventFixture())
     .then(() => expect(sendMessageSpy.calledTwice, 'Should have added to messages to the queue').to.equal(true))
   );
 });
