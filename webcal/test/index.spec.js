@@ -8,6 +8,8 @@ const sillyname = require('sillyname');
 
 const handler = require('../index').handler;
 
+const QUEUE_URL_FIXTURE = 'http://sqs.eu-central-1.amazonaws.example/123456789012/HolidayQueue';
+
 const generateHoliday = (day) => ({
   date: DateTime.local(2017, 1, (day % 5) + 1).toISODate(),
   name: sillyname() + ' -p\u00e4iv\u00e4',
@@ -30,7 +32,7 @@ const mockAws = (sendMessageSpy) => {
 };
 
 const mockEnvironment = () => {
-  process.env.HOLIDAY_QUEUE_URL = 'http://sqs.eu-central-1.amazonaws.example/123456789012/HolidayQueue';
+  process.env.HOLIDAY_QUEUE_URL = QUEUE_URL_FIXTURE;
 };
 
 describe('handler', () => {
@@ -50,5 +52,9 @@ describe('handler', () => {
 
   it('adds holidays of current day to SQS', () => handler(generateEventFixture())
     .then(() => expect(sendMessageSpy.calledTwice, 'Should have added to messages to the queue').to.equal(true))
+  );
+
+  it('adds the holidays to the correct queue', () => handler(generateEventFixture())
+    .then(() => expect(sendMessageSpy.alwaysCalledWithMatch({ QueueUrl: QUEUE_URL_FIXTURE })).to.equal(true))
   );
 });
