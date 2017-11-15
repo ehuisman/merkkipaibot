@@ -57,4 +57,8 @@ describe('handler', () => {
   it('adds the holidays to the correct queue', () => handler(generateEventFixture())
     .then(() => expect(sendMessageSpy.alwaysCalledWithMatch({ QueueUrl: QUEUE_URL_FIXTURE })).to.equal(true))
   );
+
+  it('adds the holidays to the queue with increasing delay', () => handler(generateEventFixture())
+    .then(() => expect(sendMessageSpy.secondCall.args[0].DelaySeconds).to.be.greaterThan(sendMessageSpy.firstCall.args[0].DelaySeconds))
+  );
 });
