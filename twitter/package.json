@@ -1,0 +1,21 @@
+{
+  "name": "merkkipaibot-twitter",
+  "version": "1.0.0",
+  "description": "Twitter lambda for Merkkipäivät bot",
+  "scripts": {
+    "test": "mocha"
+  },
+  "main": "index.js",
+  "author": "Eetu Huisman <eh@iki.fi>",
+  "license": "GPL-3.0",
+  "devDependencies": {
+    "chai": "^4.1.2",
+    "mocha": "^4.0.1",
+    "nock": "^9.1.0"
+  },
+  "dependencies": {
+    "env-var": "^3.0.2",
+    "luxon": "^0.0.17",
+    "twit": "^2.2.9"
+  }
+}
