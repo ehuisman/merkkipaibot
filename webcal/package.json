@@ -1,0 +1,25 @@
+{
+  "name": "merkkipaibot-webcal-client",
+  "version": "1.0.0",
+  "description": "Client which fetches data for the Merkkipäivät bot",
+  "scripts": {
+    "test": "mocha"
+  },
+  "author": "Eetu Huisman <eh@iki.fi>",
+  "license": "GPL-3.0",
+  "devDependencies": {
+    "aws-sdk-mock": "^1.7.0",
+    "chai": "^4.1.2",
+    "mocha": "^4.0.1",
+    "nock": "^9.1.0",
+    "sinon": "^4.1.2"
+  },
+  "dependencies": {
+    "axios": "^0.17.1",
+    "env-var": "^3.0.2",
+    "luxon": "^0.0.17"
+  },
+  "optionalDependencies": {
+    "aws-sdk": "^2.150.0"
+  }
+}
