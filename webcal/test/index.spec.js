@@ -2,12 +2,19 @@ const nock = require('nock');
 const expect = require('chai').expect;
 const AWS = require('aws-sdk-mock');
 const sinon = require('sinon');
+const range = require('lodash.range');
+const DateTime = require('luxon').DateTime;
+const sillyname = require('sillyname');
 
 const handler = require('../index').handler;
 
-const generateResponseBodyFixture = function () {
-  return '[{"date":"2017-01-01","name":"Avantouintip\u00e4iv\u00e4","url":"http:\\/\\/www.daysoftheyear.com\\/days\\/polar-bear-swim-day\\/"}]';
-};
+const generateHoliday = (day) => ({
+  date: DateTime.local(2017, 1, (day % 5) + 1).toISODate(),
+  name: sillyname() + ' -p\u00e4iv\u00e4',
+  url: `http://${sillyname.randomNoun()}.example`
+});
+
+const generateResponseBodyFixture = () => JSON.stringify(range(10).map(i => generateHoliday(i)));
 
 const mockServer = () => {
   nock('https://www.webcal.fi')
@@ -39,7 +46,7 @@ describe('handler', () => {
     .then(() => expect(nock.isDone(), 'All requests should be done').to.equal(true))
   );
 
-  it('adds events to SQS', () => handler({"time": "2017-01-01T11:00:00Z"})
-    .then(() => expect(sendMessageSpy.called).to.equal(true))
+  it('adds events of current day to SQS', () => handler({"time": "2017-01-01T11:00:00Z"})
+    .then(() => expect(sendMessageSpy.calledTwice, 'Should have added to messages to the queue').to.equal(true))
   );
 });
