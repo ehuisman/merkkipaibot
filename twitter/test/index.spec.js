@@ -12,10 +12,10 @@ const mockTwitterApi = () => {
 };
 
 const setupEnvironment = () => {
-  process.env.HOLIDAYS_TWITTER_CONSUMER_KEY = 'key';
-  process.env.HOLIDAYS_TWITTER_CONSUMER_SECRET = 'secret';
-  process.env.HOLIDAYS_TWITTER_ACCESS_TOKEN = 'token';
-  process.env.HOLIDAYS_TWITTER_ACCESS_TOKEN_SECRET = 'token_secret';
+  process.env.TWITTER_CONSUMER_KEY = 'key';
+  process.env.TWITTER_CONSUMER_SECRET = 'secret';
+  process.env.TWITTER_ACCESS_TOKEN = 'token';
+  process.env.TWITTER_ACCESS_TOKEN_SECRET = 'token_secret';
 };
 
 describe('Twitter client', () => {
