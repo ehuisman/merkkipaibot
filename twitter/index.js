@@ -13,8 +13,7 @@ const handler = (event) => {
     access_token: env.get('TWITTER_ACCESS_TOKEN').required().asString(),
     access_token_secret: env.get('TWITTER_ACCESS_TOKEN_SECRET').required().asString()
   });
-
-  return twitter.post('statuses/update', makeTweet(event))
+  return twitter.post('statuses/update', makeTweet(JSON.parse(event.Records[0].Sns.Message)));
 };
 
 exports.handler = handler;
