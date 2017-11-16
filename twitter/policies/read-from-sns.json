@@ -1,0 +1,13 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Action": [
+        "sns:Subscribe",
+        "sns:Receive"
+      ],
+      "Effect": "Allow",
+      "Resource": "arn:aws:sns:eu-central-1:537355134855:Holidays"
+    }
+  ]
+}
