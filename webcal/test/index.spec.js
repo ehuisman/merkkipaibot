@@ -9,6 +9,13 @@ const sillyname = require('sillyname');
 const handler = require('../index').handler;
 
 const TOPIC_ARN_FIXTURE = 'arn:aws:sns:aq-north-1:123456789012:Holidays';
+const FUNNY_HOLIDAYS_QUERY = {
+  id: 31,
+  format: 'json',
+  start_year: 'current_year',
+  end_year: 'current_year',
+  tz: 'Europe/Helsinki'
+};
 
 const generateHoliday = (day) => ({
   date: DateTime.local(2017, 1, (day % 5) + 1).toISODate(),
@@ -23,7 +30,7 @@ const generateEventFixture = () => ({ time: DateTime.utc(2017, 1, 1, 11).toISO()
 const mockServer = () => {
   nock('https://www.webcal.fi')
     .get('/cal.php')
-    .query(true)
+    .query(FUNNY_HOLIDAYS_QUERY)
     .reply(200, JSON.stringify(HOLIDAYS_FIXTURE));
 };
 
