@@ -8,7 +8,7 @@ const sillyname = require('sillyname');
 
 const handler = require('../index').handler;
 
-const QUEUE_URL_FIXTURE = 'http://sqs.eu-central-1.amazonaws.example/123456789012/HolidayQueue';
+const TOPIC_ARN_FIXTURE = 'arn:aws:sns:aq-north-1:123456789012:Holidays';
 
 const generateHoliday = (day) => ({
   date: DateTime.local(2017, 1, (day % 5) + 1).toISODate(),
@@ -16,7 +16,7 @@ const generateHoliday = (day) => ({
   url: `http://${sillyname.randomNoun()}.example`
 });
 
-const generateResponseBodyFixture = () => JSON.stringify(range(10).map(i => generateHoliday(i)));
+const HOLIDAYS_FIXTURE = range(10).map(i => generateHoliday(i));
 
 const generateEventFixture = () => ({ time: DateTime.utc(2017, 1, 1, 11).toISO() });
 
@@ -24,25 +24,27 @@ const mockServer = () => {
   nock('https://www.webcal.fi')
     .get('/cal.php')
     .query(true)
-    .reply(200, generateResponseBodyFixture());
+    .reply(200, JSON.stringify(HOLIDAYS_FIXTURE));
 };
 
-const mockAws = (sendMessageSpy) => {
-  AWS.mock('SQS', 'sendMessage', sendMessageSpy)
+const mockAws = (publishSpy) => {
+  AWS.mock('SNS', 'publish', publishSpy)
 };
 
 const mockEnvironment = () => {
-  process.env.HOLIDAY_QUEUE_URL = QUEUE_URL_FIXTURE;
+  process.env.SNS_HOLIDAYS_TOPIC = TOPIC_ARN_FIXTURE;
 };
 
+const messageMatcher = (index) => ({ Message: JSON.stringify(HOLIDAYS_FIXTURE[index]) });
+
 describe('handler', () => {
-  const sendMessageSpy = sinon.stub();
+  const publishSpy = sinon.stub();
 
   beforeEach(() => {
-    sendMessageSpy.yields();
+    publishSpy.yields();
 
     mockServer();
-    mockAws(sendMessageSpy);
+    mockAws(publishSpy);
     mockEnvironment();
   });
 
@@ -50,15 +52,23 @@ describe('handler', () => {
     .then(() => expect(nock.isDone(), 'All requests should be done').to.equal(true))
   );
 
-  it('adds holidays of current day to SQS', () => handler(generateEventFixture())
-    .then(() => expect(sendMessageSpy.calledTwice, 'Should have added to messages to the queue').to.equal(true))
+  it('adds correct number of holidays to SNS', () => handler(generateEventFixture())
+    .then(() => expect(publishSpy.calledTwice, 'Should have added sent messages to the topic').to.equal(true))
+  );
+
+  it('adds first holiday of the day to SNS', () => handler(generateEventFixture())
+    .then(() => {
+      return expect(publishSpy.calledWithMatch(messageMatcher(0)), 'Should have sent first message to the topic').to.equal(true)
+    })
+  );
+
+  it('adds second holiday of the day to SNS', () => handler(generateEventFixture())
+    .then(() => {
+      return expect(publishSpy.calledWithMatch(messageMatcher(5)), 'Should have sent second message to the topic').to.equal(true)
+    })
   );
 
   it('adds the holidays to the correct queue', () => handler(generateEventFixture())
-    .then(() => expect(sendMessageSpy.alwaysCalledWithMatch({ QueueUrl: QUEUE_URL_FIXTURE })).to.equal(true))
-  );
-
-  it('adds the holidays to the queue with increasing delay', () => handler(generateEventFixture())
-    .then(() => expect(sendMessageSpy.secondCall.args[0].DelaySeconds).to.be.greaterThan(sendMessageSpy.firstCall.args[0].DelaySeconds))
+    .then(() => expect(publishSpy.alwaysCalledWithMatch({ TopicArn: TOPIC_ARN_FIXTURE })).to.equal(true))
   );
 });
