@@ -7,7 +7,7 @@ const MESSAGE_FIXTURE = {"date":"2017-11-15","name":"Siivoa jääkaappisi -päiv
 const mockTwitterApi = () => {
   nock('https://api.twitter.com')
     .post('/1.1/statuses/update.json')
-    .query(true)
+    .query(query => query.status.indexOf('15.11.') > -1)
     .reply(200, {});
 };
 

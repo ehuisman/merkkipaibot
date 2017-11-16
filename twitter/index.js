@@ -2,10 +2,8 @@ const Twit = require('twit');
 const env = require('env-var');
 const DateTime = require('luxon').DateTime;
 
-const FINNISH_LOCALE_OPTIONS = { locale: 'fi' };
-
 let makeTweet = function (event) {
-  return { status: `Tänään on ${DateTime.fromISO(event.date, FINNISH_LOCALE_OPTIONS).toLocaleString()}, ${event.name}.` };
+  return { status: `Tänään on ${DateTime.fromISO(event.date).toFormat('d.M.')}, ${event.name}.` };
 };
 
 const handler = (event) => {
