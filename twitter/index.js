@@ -4,7 +4,7 @@ const moment = require('moment');
 moment.locale('fi');
 
 let makeTweet = function (event) {
-  return { status: `Tänään on ${moment(event.date).format('dddd, D. MMMM')}ta, ${event.name}.` };
+  return { status: `Tänään on ${moment(event.date).format('dddd, D. MMMM')}ta, ${event.name}.${event.url ? `\n\nLisätietoja: ${event.url}` : '' }` };
 };
 
 const handler = (event) => {
