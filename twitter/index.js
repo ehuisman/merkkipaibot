@@ -3,7 +3,7 @@ const env = require('env-var');
 const DateTime = require('luxon').DateTime;
 
 let makeTweet = function (event) {
-  return { status: `Tänään - ${DateTime.fromISO(event.date).toFormat('d.M.')} - on ${event.name}.` };
+  return { status: `Tänään ${DateTime.fromISO(event.date).toFormat('d.M.')} on ${event.name}.` };
 };
 
 const handler = (event) => {
