@@ -37,7 +37,7 @@ const MESSAGE_FIXTURE = {
 const mockTwitterApi = () => {
   nock('https://api.twitter.com')
     .post('/1.1/statuses/update.json')
-    .query(query => query.status.indexOf('15.11. ') > -1)
+    .query(query => query.status.indexOf('keskiviikko, 15. marraskuuta') > -1)
     .reply(200, {});
 };
 

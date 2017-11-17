@@ -15,7 +15,7 @@
   },
   "dependencies": {
     "env-var": "^3.0.2",
-    "luxon": "^0.0.17",
+    "moment": "^2.19.2",
     "twit": "^2.2.9"
   }
 }

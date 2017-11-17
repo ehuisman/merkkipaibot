@@ -1,9 +1,10 @@
 const Twit = require('twit');
 const env = require('env-var');
-const DateTime = require('luxon').DateTime;
+const moment = require('moment');
+moment.locale('fi');
 
 let makeTweet = function (event) {
-  return { status: `Tänään ${DateTime.fromISO(event.date).toFormat('d.M.')} on ${event.name}.` };
+  return { status: `Tänään on ${moment(event.date).format('dddd, D. MMMM')}ta, ${event.name}.` };
 };
 
 const handler = (event) => {
