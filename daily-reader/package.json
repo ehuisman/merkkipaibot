@@ -1,0 +1,21 @@
+{
+  "name": "merkkipaibot-daily-reader",
+  "version": "1.0.0",
+  "description": "Lambda for reading daily list of holidays from S3 and passing them to SNS.",
+  "main": "index.js",
+  "author": "Eetu Huisman <eh@iki.fi>",
+  "license": "GPL-3.0",
+  "devDependencies": {
+    "aws-sdk-mock": "^1.7.0",
+    "chai": "^4.1.2",
+    "mocha": "^4.0.1",
+    "sinon": "^4.1.2"
+  },
+  "dependencies": {
+    "env-var": "^3.0.2",
+    "luxon": "^0.0.20"
+  },
+  "optionalDependencies": {
+    "aws-sdk": "^2.153.0"
+  }
+}
