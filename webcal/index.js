@@ -1,21 +1,25 @@
 const axios = require('axios');
-const DateTime = require('luxon').DateTime;
+const { DateTime, Interval, Duration } = require('luxon');
 const AWS = require('aws-sdk');
 const env = require('env-var');
 
-const createWebCalUrl = s => `https://www.webcal.fi/cal.php?id=${s}&format=json&start_year=current_year&end_year=current_year&tz=Europe%2FHelsinki`;
-const FUNNY_HOLIDAYS_URL = createWebCalUrl(31);
-const LITTLE_KNOWN_HOLIDAYS_URL = createWebCalUrl(34);
+const createWebCalUrl = (id, startYear, endYear) =>
+  `https://www.webcal.fi/cal.php?id=${id}&format=json&start_year=${startYear}&end_year=${endYear}&tz=Europe%2FHelsinki`;
 
-const fetchFunnyHolidays = () => Promise.all([
-  axios.get(FUNNY_HOLIDAYS_URL),
-  axios.get(LITTLE_KNOWN_HOLIDAYS_URL)
+const fetchCalendars = (startYear, endYear) => Promise.all([
+  axios.get(createWebCalUrl(31, startYear, endYear)),
+  axios.get(createWebCalUrl(34, startYear, endYear))
 ]);
 
 const fetch = (event) => {
-  const topicArn = env.get('SNS_HOLIDAYS_TOPIC').required().asString();
+  const topicArn = env.get('SNS_WEEKLY_HOLIDAYS_TOPIC').required().asString();
+  const cacheBucket = env.get('S3_HOLIDAYS_BY_DAY_BUCKET').required().asString();
   const sns = new AWS.SNS();
-  return fetchFunnyHolidays()
+  const s3 = new AWS.S3();
+
+  const nextWeek = Interval.after(DateTime.fromISO(event.time).plus({ weeks: 1 }).startOf('week'), Duration.fromObject({ weeks: 1 }));
+
+  return fetchCalendars(nextWeek.start.year, nextWeek.end.year)
     .then(responses =>
       Promise.resolve(responses.reduce((data, response) =>
         data.concat(response.data), [])
@@ -23,16 +27,33 @@ const fetch = (event) => {
     )
     .then(data =>
       Promise.resolve(data.filter(holiday =>
-        DateTime.fromISO(holiday.date).hasSame(DateTime.fromISO(event.time), 'day'))
+        nextWeek.contains(DateTime.fromISO(holiday.date)))
       )
     )
     .then(holidays =>
-      Promise.all(holidays.map((holiday) =>
+      Promise.resolve(holidays.reduce(
+        (byDay, holiday) => {
+          byDay[holiday.date].push(holiday);
+          return byDay;
+        },
+        [...new Set(holidays.map(holiday => holiday.date))]
+          .map(date => ({ [date]: []}))
+          .reduce((memo, value) => Object.assign(memo, value), {})
+      ))
+    )
+    .then(holidaysByDate =>
+      Object.keys(holidaysByDate).map(date =>
+        s3.putObject({
+          Bucket: cacheBucket,
+          Key: date,
+          Body: JSON.stringify(holidaysByDate[date])
+        }).promise()
+      ).concat([
         sns.publish({
-          Message: JSON.stringify(holiday),
+          Message: JSON.stringify(holidaysByDate),
           TopicArn: topicArn
         }).promise()
-      ))
+      ])
     );
 };
 

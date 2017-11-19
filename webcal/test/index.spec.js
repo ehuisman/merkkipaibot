@@ -8,98 +8,111 @@ const sillyname = require('sillyname');
 
 const handler = require('../index').handler;
 
-const TOPIC_ARN_FIXTURE = 'arn:aws:sns:aq-north-1:123456789012:Holidays';
+const TOPIC_ARN_FIXTURE = 'arn:aws:sns:aq-north-1:123456789012:WeeklyHolidays';
+const BUCKET_NAME_FIXTURE = 'cache-bucket';
 
-let createQuery = id => ({
+const createQueryMatcher = (id, startYear, endYear) => ({
   id: id,
   format: 'json',
-  start_year: 'current_year',
-  end_year: 'current_year',
+  start_year: startYear || 2017,
+  end_year: endYear || 2017,
   tz: 'Europe/Helsinki'
 });
 
-const FUNNY_HOLIDAYS_QUERY = createQuery(31);
-const LITTLE_KNOWN_HOLIDAYS_QUERY = createQuery(34);
-
-const generateHoliday = (day) => ({
-  date: DateTime.local(2017, 1, (day % 5) + 1).toISODate(),
+const generateHoliday = (fromDate, index) => ({
+  date: fromDate.plus({ days: (index % 14) + 1 }).toISODate(),
   name: sillyname() + ' -p\u00e4iv\u00e4',
   url: `http://${sillyname.randomNoun()}.example`
 });
 
-let generateHolidaysFixture = function () {
-  return range(10).map(i => generateHoliday(i));
-};
-const FUNNY_HOLIDAYS_FIXTURE = generateHolidaysFixture();
-const LITTLE_KNOWN_HOLIDAYS_FIXTURE = generateHolidaysFixture();
-
-const generateEventFixture = () => ({ time: DateTime.utc(2017, 1, 1, 11).toISO() });
-
-const mockServer = () => {
-  nock('https://www.webcal.fi')
-    .get('/cal.php')
-    .query(FUNNY_HOLIDAYS_QUERY)
-    .reply(200, JSON.stringify(FUNNY_HOLIDAYS_FIXTURE));
-  nock('https://www.webcal.fi')
-    .get('/cal.php')
-    .query(LITTLE_KNOWN_HOLIDAYS_QUERY)
-    .reply(200, JSON.stringify(LITTLE_KNOWN_HOLIDAYS_FIXTURE));
+const generateHolidaysFixture = function (startDate) {
+  return range(28).map(i => generateHoliday(startDate, i));
 };
 
-const mockAws = (publishSpy) => {
-  AWS.mock('SNS', 'publish', publishSpy)
+const generateEventFixture = (dateTime) => ({ time: dateTime.toISO() });
+
+const mockWebCalFi = (funnyQueryMatcher, littleKnownQueryMatcher, funnyHolidaysResponse, littleKnownHolidaysResponse) => {
+  nock('https://www.webcal.fi')
+    .get('/cal.php')
+    .query(funnyQueryMatcher)
+    .reply(200, JSON.stringify(funnyHolidaysResponse));
+
+  nock('https://www.webcal.fi')
+    .get('/cal.php')
+    .query(littleKnownQueryMatcher)
+    .reply(200, JSON.stringify(littleKnownHolidaysResponse));
+};
+
+const mockAws = (publishSpy, putObjectSpy) => {
+  AWS.mock('SNS', 'publish', publishSpy);
+  AWS.mock('S3', 'putObject', putObjectSpy);
 };
 
 const mockEnvironment = () => {
-  process.env.SNS_HOLIDAYS_TOPIC = TOPIC_ARN_FIXTURE;
+  process.env.SNS_WEEKLY_HOLIDAYS_TOPIC = TOPIC_ARN_FIXTURE;
+  process.env.S3_HOLIDAYS_BY_DAY_BUCKET = BUCKET_NAME_FIXTURE;
 };
 
-const messageMatcher = (fixture, index) => ({ Message: JSON.stringify(fixture[index]) });
+const isoDateStringFor = function (START_DATE_FIXTURE, i) {
+  return START_DATE_FIXTURE.plus({ weeks: 1 }).startOf('week').plus({ days: i }).toISODate();
+};
 
 describe('handler', () => {
   const publishSpy = sinon.stub();
+  const putObjectSpy = sinon.stub();
 
   beforeEach(() => {
     publishSpy.yields();
+    putObjectSpy.yields();
 
-    mockServer();
-    mockAws(publishSpy);
+    mockAws(publishSpy, putObjectSpy);
     mockEnvironment();
   });
 
-  it('fetches funny and little known holidays from webcal.fi', () => handler({})
-    .then(() => expect(nock.isDone(), 'All requests should be done').to.equal(true))
-  );
+  describe('when the whole week is inside one year', () => {
+    const START_DATE_FIXTURE = DateTime.local(2017, 11, 15);
+    const FUNNY_HOLIDAYS_FIXTURE = generateHolidaysFixture(START_DATE_FIXTURE);
+    const LITTLE_KNOWN_HOLIDAYS_FIXTURE = generateHolidaysFixture(START_DATE_FIXTURE);
+    const EVENT_FIXTURE = generateEventFixture(START_DATE_FIXTURE);
 
-  it('publishes the correct number of holidays to SNS', () => handler(generateEventFixture())
-    .then(() => expect(publishSpy.callCount === 4, 'Should have added sent messages to the topic').to.equal(true))
-  );
+    beforeEach(() => {
+      mockWebCalFi(createQueryMatcher(31), createQueryMatcher(34), FUNNY_HOLIDAYS_FIXTURE, LITTLE_KNOWN_HOLIDAYS_FIXTURE);
+    });
 
-  it('publishes the first funny holiday of the day to SNS', () => handler(generateEventFixture())
-    .then(() => {
-      return expect(publishSpy.calledWithMatch(messageMatcher(FUNNY_HOLIDAYS_FIXTURE, 0)), 'Should have sent first message to the topic').to.equal(true)
-    })
-  );
+    it('fetches funny and little known holidays for current year', () =>
+      handler(EVENT_FIXTURE)
+        .then(() => expect(nock.isDone()).to.equal(true))
+    );
 
-  it('publishes the second funny holiday of the day to SNS', () => handler(generateEventFixture())
-    .then(() => {
-      return expect(publishSpy.calledWithMatch(messageMatcher(FUNNY_HOLIDAYS_FIXTURE, 5)), 'Should have sent second message to the topic').to.equal(true)
-    })
-  );
+    it('uses date as the key when storing the holidays to S3', () =>
+      handler(EVENT_FIXTURE).then(() =>
+        Promise.all(range(7).map(i =>
+          expect(putObjectSpy.calledWithMatch({ Key: isoDateStringFor(START_DATE_FIXTURE, i) })).to.equal(true))
+        )
+      )
+    );
 
-  it('publishes the first little known holiday of the day to SNS', () => handler(generateEventFixture())
-    .then(() => {
-      return expect(publishSpy.calledWithMatch(messageMatcher(LITTLE_KNOWN_HOLIDAYS_FIXTURE, 0)), 'Should have sent first message to the topic').to.equal(true)
-    })
-  );
+    it('publishes the holidays of the next week to SNS', () =>
+      handler(EVENT_FIXTURE).then(() =>
+        expect(publishSpy.calledWithMatch(snsMessage =>
+          Object.keys(JSON.parse(snsMessage.Message)) === (range(7).map(i => isoDateStringFor(START_DATE_FIXTURE, i))) &&
+          snsMessage.TopicArn === TOPIC_ARN_FIXTURE
+        ))
+      )
+    );
+  });
 
-  it('publishes the first little known holiday of the day to SNS', () => handler(generateEventFixture())
-    .then(() => {
-      return expect(publishSpy.calledWithMatch(messageMatcher(LITTLE_KNOWN_HOLIDAYS_FIXTURE, 5)), 'Should have sent second message to the topic').to.equal(true)
-    })
-  );
+  describe('when part of the week is within the next year', () => {
+    const START_DATE_FIXTURE = DateTime.local(2018, 12, 30);
+    const FUNNY_HOLIDAYS_FIXTURE = generateHolidaysFixture(START_DATE_FIXTURE);
+    const LITTLE_KNOWN_HOLIDAYS_FIXTURE = generateHolidaysFixture(START_DATE_FIXTURE);
 
-  it('adds all the holidays to the correct queue', () => handler(generateEventFixture())
-    .then(() => expect(publishSpy.alwaysCalledWithMatch({ TopicArn: TOPIC_ARN_FIXTURE })).to.equal(true))
-  );
+    beforeEach(() => {
+      mockWebCalFi(createQueryMatcher(31, 2018, 2019), createQueryMatcher(34, 2018, 2019), FUNNY_HOLIDAYS_FIXTURE, LITTLE_KNOWN_HOLIDAYS_FIXTURE);
+    });
+
+    it('fetches funny and little known holidays for current year', () =>
+      handler({ time: START_DATE_FIXTURE.toISODate() }).then(() => expect(nock.isDone()).to.equal(true))
+    );
+  });
 });
