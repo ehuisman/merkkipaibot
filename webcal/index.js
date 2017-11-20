@@ -46,7 +46,8 @@ const fetch = (event) => {
         s3.putObject({
           Bucket: cacheBucket,
           Key: date,
-          Body: JSON.stringify(holidaysByDate[date])
+          Body: JSON.stringify(holidaysByDate[date]),
+          ContentType: 'application/json'
         }).promise()
       ).concat([
         sns.publish({
