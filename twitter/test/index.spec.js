@@ -30,7 +30,7 @@ describe('Twitter client', () => {
     beforeEach(() => {
       mockTwitterApi(query =>
         query.status.indexOf('keskiviikko, 15. marraskuuta') > -1 &&
-        query.status.indexOf('http://www.daysoftheyear.com/days/clean-your-refrigerator-day') > -1
+        query.status.indexOf('\n\nLisätietoja: http://www.daysoftheyear.com/days/clean-your-refrigerator-day') > -1
       );
     });
 
