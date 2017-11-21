@@ -36,7 +36,8 @@ const fetch = (event) => {
           byDay[holiday.date].push(holiday);
           return byDay;
         },
-        [...new Set(holidays.map(holiday => holiday.date))]
+        nextWeek.divideEqually(7)
+          .map(day => day.start.toISODate())
           .map(date => ({ [date]: []}))
           .reduce((memo, value) => Object.assign(memo, value), {})
       ))

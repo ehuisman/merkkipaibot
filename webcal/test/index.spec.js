@@ -70,11 +70,23 @@ describe('handler', () => {
     mockEnvironment();
   });
 
+  const START_DATE_FIXTURE = DateTime.local(2017, 11, 15);
+  const EVENT_FIXTURE = generateEventFixture(START_DATE_FIXTURE);
+
+  const assertSnsMessage = () =>
+    expect(publishSpy.calledWithMatch(snsMessage =>
+      isEqual(Object.keys(JSON.parse(snsMessage.Message)), range(7).map(i => isoDateStringFor(START_DATE_FIXTURE, i))) &&
+      snsMessage.TopicArn === TOPIC_ARN_FIXTURE
+    )).to.equal(true);
+
+  const assertPutObject = () =>
+    Promise.all(range(7).map(i =>
+      expect(putObjectSpy.calledWithMatch({ Key: isoDateStringFor(START_DATE_FIXTURE, i) })).to.equal(true))
+    );
+
   describe('when the whole week is inside one year', () => {
-    const START_DATE_FIXTURE = DateTime.local(2017, 11, 15);
     const FUNNY_HOLIDAYS_FIXTURE = generateHolidaysFixture(START_DATE_FIXTURE);
     const LITTLE_KNOWN_HOLIDAYS_FIXTURE = generateHolidaysFixture(START_DATE_FIXTURE);
-    const EVENT_FIXTURE = generateEventFixture(START_DATE_FIXTURE);
 
     beforeEach(() => {
       mockWebCalFi(createQueryMatcher(31), createQueryMatcher(34), FUNNY_HOLIDAYS_FIXTURE, LITTLE_KNOWN_HOLIDAYS_FIXTURE);
@@ -86,11 +98,7 @@ describe('handler', () => {
     );
 
     it('uses date as the key when storing the holidays to S3', () =>
-      handler(EVENT_FIXTURE).then(() =>
-        Promise.all(range(7).map(i =>
-          expect(putObjectSpy.calledWithMatch({ Key: isoDateStringFor(START_DATE_FIXTURE, i) })).to.equal(true))
-        )
-      )
+      handler(EVENT_FIXTURE).then(assertPutObject)
     );
 
     it('publishes the holidays of the next week to SNS', () =>
@@ -115,5 +123,19 @@ describe('handler', () => {
     it('fetches funny and little known holidays for current year', () =>
       handler({ time: START_DATE_FIXTURE.toISODate() }).then(() => expect(nock.isDone()).to.equal(true))
     );
+  });
+
+  describe('when a day has no holidays', () => {
+    beforeEach(() => {
+      mockWebCalFi(createQueryMatcher(31), createQueryMatcher(34), [], []);
+    });
+
+    it('publishes the day with an empty array to SNS', () =>
+      handler(EVENT_FIXTURE).then(assertSnsMessage)
+    );
+
+    it('stores an empty array for the day in S3', () =>
+      handler(EVENT_FIXTURE).then(assertPutObject)
+    )
   });
 });
