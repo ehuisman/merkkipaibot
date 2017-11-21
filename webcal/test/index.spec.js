@@ -3,6 +3,7 @@ const expect = require('chai').expect;
 const AWS = require('aws-sdk-mock');
 const sinon = require('sinon');
 const range = require('lodash.range');
+const isEqual = require('lodash.isequal');
 const DateTime = require('luxon').DateTime;
 const sillyname = require('sillyname');
 
@@ -95,9 +96,9 @@ describe('handler', () => {
     it('publishes the holidays of the next week to SNS', () =>
       handler(EVENT_FIXTURE).then(() =>
         expect(publishSpy.calledWithMatch(snsMessage =>
-          Object.keys(JSON.parse(snsMessage.Message)) === (range(7).map(i => isoDateStringFor(START_DATE_FIXTURE, i))) &&
+          isEqual(Object.keys(JSON.parse(snsMessage.Message)), range(7).map(i => isoDateStringFor(START_DATE_FIXTURE, i))) &&
           snsMessage.TopicArn === TOPIC_ARN_FIXTURE
-        ))
+        )).to.equal(true)
       )
     );
   });

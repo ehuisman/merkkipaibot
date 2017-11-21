@@ -10,6 +10,7 @@
   "devDependencies": {
     "aws-sdk-mock": "^1.7.0",
     "chai": "^4.1.2",
+    "lodash.isequal": "^4.5.0",
     "lodash.range": "^3.2.0",
     "mocha": "^4.0.1",
     "nock": "^9.1.0",
