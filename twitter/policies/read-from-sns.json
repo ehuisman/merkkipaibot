@@ -7,7 +7,10 @@
         "sns:Receive"
       ],
       "Effect": "Allow",
-      "Resource": "arn:aws:sns:eu-central-1:537355134855:Holidays"
+      "Resource": [
+        "arn:aws:sns:eu-central-1:537355134855:Holidays",
+        "arn:aws:sns:eu-central-1:537355134855:WeeklyHolidays"
+      ]
     }
   ]
 }

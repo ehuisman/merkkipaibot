@@ -1,46 +1,12 @@
 const handler = require('../index').handler;
 const nock = require('nock');
 const expect = require('chai').expect;
+const { SINGLE_MESSAGE_FIXTURE, WEEKLY_SUMMARY_MESSAGE_FIXTURE, UNKNOWN_TOPIC_MESSAGE_FIXTURE } = require('./fixtures');
 
-const MESSAGE_FIXTURE = {
-  "Records": [
-    {
-      "EventVersion": "1.0",
-      "EventSubscriptionArn": "arn:aws:sns:aq-north-1:123456789012:Holidays",
-      "EventSource": "aws:sns",
-      "Sns": {
-        "SignatureVersion": "1",
-        "Timestamp": "1970-01-01T00:00:00.000Z",
-        "Signature": "EXAMPLE",
-        "SigningCertUrl": "EXAMPLE",
-        "MessageId": "95df01b4-ee98-5cb9-9903-4c221d41eb5e",
-        "Message": "{\"date\":\"2017-11-15\",\"name\":\"Siivoa jääkaappisi -päivä\",\"url\":\"http://www.daysoftheyear.com/days/clean-your-refrigerator-day/\"}",
-        "MessageAttributes": {
-          "Test": {
-            "Type": "String",
-            "Value": "TestString"
-          },
-          "TestBinary": {
-            "Type": "Binary",
-            "Value": "TestBinary"
-          }
-        },
-        "Type": "Notification",
-        "UnsubscribeUrl": "EXAMPLE",
-        "TopicArn": "arn:aws:sns:aq-north-1:123456789012:Holidays",
-        "Subject": "TestInvoke"
-      }
-    }
-  ]
-};
-
-const mockTwitterApi = () => {
+const mockTwitterApi = (queryMatcher) => {
   nock('https://api.twitter.com')
     .post('/1.1/statuses/update.json')
-    .query(query =>
-      query.status.indexOf('keskiviikko, 15. marraskuuta') > -1 &&
-      query.status.indexOf('http://www.daysoftheyear.com/days/clean-your-refrigerator-day') > -1
-    )
+    .query(queryMatcher)
     .reply(200, {});
 };
 
@@ -53,11 +19,48 @@ const setupEnvironment = () => {
 
 describe('Twitter client', () => {
   beforeEach(() => {
-    mockTwitterApi();
     setupEnvironment();
   });
 
-  it('sends a tweet', () => handler(MESSAGE_FIXTURE)
-    .then(() => expect(nock.isDone()).to.equal(true))
-  );
+  const assertNockIsDone = () =>
+    expect(nock.isDone(), `Twitter API was not invoked with correct parameters, ${nock.pendingMocks()}`)
+      .to.equal(true);
+
+  describe('when invoked with a single holiday', () => {
+    beforeEach(() => {
+      mockTwitterApi(query =>
+        query.status.indexOf('keskiviikko, 15. marraskuuta') > -1 &&
+        query.status.indexOf('http://www.daysoftheyear.com/days/clean-your-refrigerator-day') > -1
+      );
+    });
+
+    it('sends a tweet', () =>
+      handler(SINGLE_MESSAGE_FIXTURE).then(assertNockIsDone)
+    );
+  });
+
+  describe('when invoked with a weekly summary', () => {
+    beforeEach(() => {
+      mockTwitterApi(({ status }) =>
+        status.indexOf('Alkavan viikon') > -1 &&
+        status.indexOf('\nma 20.11. Kauneuspäivä +2') > -1 &&
+        status.indexOf('\nti 21.11. Maailman tervehdyspäivä +2') > -1 &&
+        status.indexOf('\nke 22.11. Mene ajelulle -päivä +1') > -1 &&
+        status.indexOf('\nto 23.11. Fibonaccin päivä') > -1 &&
+        status.indexOf('\npe 24.11. Juice-päivä +4') > -1 &&
+        status.indexOf('\nla 25.11. Jouluhankintojen tekemisen muistutuspäivä') > -1 &&
+        status.indexOf('\nsu 26.11. –') > -1
+      );
+    });
+
+    it('sends a tweet', () =>
+      handler(WEEKLY_SUMMARY_MESSAGE_FIXTURE).then(assertNockIsDone)
+    );
+  });
+
+  describe('when invoked from an unknown topic', () => {
+    it('throws an error', () =>
+      handler(UNKNOWN_TOPIC_MESSAGE_FIXTURE).then(() => expect.fail()).catch(err => expect(err).to.be.an('error'))
+    );
+  });
 });
