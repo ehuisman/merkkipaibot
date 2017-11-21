@@ -17,6 +17,7 @@ const handler = (event) => {
 
   return s3.getObject(createGetRequest(bucketName, dateString)).promise()
     .then(data => Promise.resolve(JSON.parse(data.Body)))
+    .catch(err => Promise.resolve([]))
     .then(holidays =>
       Promise.all(holidays.map(holiday =>
         sns.publish({
