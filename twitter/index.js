@@ -9,7 +9,13 @@ const makeSingleHolidayTweet = holiday => ({
 Lisätietoja: ${holiday.url}` : '' }`
 });
 
-const makeDay = (date, holidays) => `\n${moment(date).format('dd D.M.')} ${holidays.length > 0 ? `${holidays.sort((first, second) => first.length - second.length)[0]} ${holidays.length > 1 ? `+${holidays.length - 1}` : ''}` : '–'}`;
+const makeDay = (date, holidays) =>
+  `\n${moment(date).format('dd D.M.')} ${holidays.length > 0 ?
+    `${holidays.sort((first, second) =>
+      first.length - second.length)[0]}${holidays.length > 1 ?
+      ` +${holidays.length - 1}` :
+      ''}` :
+    '–'}`;
 
 const makeSummaryTweet = holidaysByDay => ({
   status: Object.keys(holidaysByDay).reduce((result, date) => result.concat(makeDay(date, holidaysByDay[date].map(holiday => holiday.name))), 'Alkavan viikon merkkipäivät\n')
